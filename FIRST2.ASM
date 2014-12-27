@@ -40,12 +40,11 @@ SHOWFF:
         MOV     AL, AL
         MOV     DX, MY8255_B
         OUT     DX, AL
-        CALL    DELAY
+        CALL    BIGDELAY
         SELECTDIG BUFFER[1]
         MOV     AL, BL
         MOV     DX, MY8255_B
         OUT     DX, AL
-       CALL    BIGDELAY
        CALL    BIGDELAY
        INC     SI
        LOOP   SHOWFF
@@ -98,12 +97,11 @@ LOOPUNIT:
         MOV  BL, AL
         OUT  DX, AL
         INC  DI
-       CALL DELAY
+       CALL BIGDELAY
         SELECTDIG BUFFER[2]
         MOV  AL, [SI]
         MOV  DX, MY8255_B
         OUT  DX, AL
-      CALL BIGDELAY
       CALL BIGDELAY
         CMP  BL, BUFFER[1]
         JZ   CMPDECADE
@@ -186,11 +184,9 @@ LOOPGREEN:
         JNZ   GREENSTART
          INC CX
         LOOP  LOOPGREEN
-
-        POP    DX
-        POP   AX
-GREENSTART:
-	JMP  LOOP1
+GREENSTART: 
+        pop  dx
+        pop  ax
         RET 
 GREEN  ENDP 
    
@@ -216,10 +212,9 @@ LOOPYELL:
         JNZ      YELLSTART
         INC      CX
         LOOP    LOOPYELL
+YELLSTART:
         POP    DX
         POP    AX
-YELLSTART:
-        JMP    LOOP1
         RET
 YELLOW ENDP
 
@@ -246,10 +241,9 @@ LOOPRED:
         JNZ     REDSTART
         INC  CX
         LOOP     LOOPRED
+REDSTART:
         POP    DX
         POP    AX
-REDSTART:
-	JMP LOOP1
         RET
 RED  ENDP
 
@@ -279,8 +273,14 @@ LOOPSHOW:
          INC   CX
         LOOP  LOOPSHOW
 LOOPSTART:
-        JMP   LOOP1
         POP DX
+       call  bigdelay
+        call  bigdelay
+ call  bigdelay
+ call  bigdelay
+ call  bigdelay
+ call  bigdelay
+     
         RET
 ENDNUM  ENDP
 
@@ -293,12 +293,11 @@ DOWNFIRST:
 	MOV 	AL, [SI]                  ;个位 
 	MOV     DX, MY8255_B
 	OUT 	DX, AL
-            CALL       DELAY
+            CALL       BIGDELAY
 	SELECTDIG BUFFER[1]               ;十位
 	MOV 	AL, [DI]
 	MOV 	DX, MY8255_B
 	OUT 	DX, AL
-                 CALL       BIGDELAY
                  CALL       BIGDELAY
                CMP         SI, 00H
 	JZ 	DOWNSECOND
@@ -316,12 +315,11 @@ DOWNUNIT:
 	MOV  	AL, [SI]
 	MOV 	DX, MY8255_B
 	OUT 	DX, AL
-       CALL    DELAY
+       CALL    BIGDELAY
 	SELECTDIG  BUFFER[1]
 	MOV 	AL, [DI]
 	MOV 	DX, MY8255_B
 	OUT 	DX, AL
-      CALL  BIGDELAY
       CALL  BIGDELAY
 	DEC 	SI
 	LOOP    DOWNUNIT
@@ -450,10 +448,13 @@ byebye1:
          jmp   byebye
 JUST_GREEN:
         CALL  GREEN
+        JMP  LOOP1
 JUST_YELLOW:
        CALL   YELLOW
+       JMP  LOOP1
 JUST_RED:
         CALL   RED
+       JMP  LOOP1
 SEC_UP_S1:
         JMP   SEC_UP_S
 SEC_UP_F1:          
@@ -509,13 +510,12 @@ LOOPUNIT1:
         MOV  BL, AL
         OUT  DX, AL
         INC  DI
-       CALL DELAY
+       CALL  BIGDELAY
         SELECTDIG BUFFER[2]
         MOV  AL, [SI]
         MOV  DX, MY8255_B
         OUT  DX, AL
       CALL BIGDELAY
-      CALL  BIGDELAY
         CMP  BL, BUFFER[1]
         JZ   CMPDECADE1
 LOOPBACK1:
@@ -535,6 +535,7 @@ EXIT1:
         MOV    CH, 42H
         MOV    CL,  41H
         CALL    ENDNUM 
+        JMP   LOOP1
    
 FIR_UP_F:
         MOV   SI, 5
@@ -589,8 +590,9 @@ EXIT2:
         MOV    AL,  6DH
         MOV    BL, 0EEH
         MOV    CH, 42H
-        MOV    CL,  41H
-        CALL    ENDNUM 
+        MOV    CL,  41H 
+        CALL    ENDNUM
+        JMP   LOOP1 
  
 SEC_UP_S:
         MOV   SI, 6
@@ -614,7 +616,7 @@ SEC_UP_S:
         MOV    CH, 22H
         MOV    CL, 21H
         CALL    ENDNUM 
- 
+        JMP   LOOP1
 SEC_UP_F:
         MOV   SI, 6
         MOV   DI, 2
@@ -637,6 +639,7 @@ SEC_UP_F:
         MOV    CH, 22H
         MOV    CL, 21H
         CALL    ENDNUM 
+        JMP   LOOP1
 
 THIRD_UP_S:
         MOV   SI, 1
@@ -660,6 +663,7 @@ THIRD_UP_S:
         MOV    CH, 12H
         MOV    CL, 11H
         CALL    ENDNUM 
+        JMP   LOOP1
 
 THIRD_UP_F:
         MOV   SI, 1
@@ -683,6 +687,7 @@ THIRD_UP_F:
         MOV    CH, 12H
         MOV    CL, 11H
         CALL    ENDNUM 
+        JMP   LOOP1
 
 FIR_DOWN_F:
         MOV   BUFFER[0], 41H
@@ -696,7 +701,8 @@ FIR_DOWN_F:
         MOV    BL, 0BEH
         MOV    CH, 42H
         MOV    CL,  41H
-        CALL    ENDNUM 
+        CALL    ENDNUM
+        JMP   LOOP1
 
 
 FIR_DOWN_S:
@@ -712,6 +718,7 @@ FIR_DOWN_S:
         MOV    CH, 42H
         MOV    CL,  41H
         CALL    ENDNUM 
+        JMP   LOOP1
 
 SEC_DOWN_F:
         MOV    BUFFER[0], 21H
@@ -726,6 +733,7 @@ SEC_DOWN_F:
         MOV    CH, 22H
         MOV    CL,  21H
         CALL    ENDNUM 
+       JMP   LOOP1
 
 SEC_DOWN_S:
          MOV    BUFFER[0], 21H
@@ -740,7 +748,7 @@ SEC_DOWN_S:
         MOV    CH, 22H
         MOV    CL,  21H
         CALL    ENDNUM 
-
+       JMP   LOOP1
 THIRD_DOWN_F:
         MOV   BUFFER[0], 11H
         MOV   BUFFER[1], 12H
@@ -754,7 +762,7 @@ THIRD_DOWN_F:
         MOV    CH, 12H
         MOV    CL,  11H
         CALL    ENDNUM 
-
+        JMP   LOOP1
 THIRD_DOWN_S:
         MOV   BUFFER[0], 11H
         MOV   BUFFER[1], 12H
@@ -768,7 +776,7 @@ THIRD_DOWN_S:
         MOV    CH, 12H
         MOV    CL,  11H
         CALL    ENDNUM 
-
+        JMP   LOOP1
 DELAY   PROC
         PUSH  CX
         MOV   CX, 7555H
@@ -783,7 +791,7 @@ BIGDELAY   PROC
         PUSH  CX
         MOV   CX, 0FFFFH
 C2:
-
+   ;      CALL  DELAY
         LOOP  C2
         POP   CX
         RET
