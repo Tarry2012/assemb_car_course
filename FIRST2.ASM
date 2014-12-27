@@ -1,3 +1,4 @@
+;数据段定义，定义A B C 控制端口地址，与数码管显示数据
 DATA    SEGMENT
         MY8255_A   EQU  1ff0H
         MY8255_B   EQU  1ff2H
@@ -8,6 +9,7 @@ DATA    SEGMENT
         datbuf      db   01h,03h
 DATA    ENDS
 
+;栈段
 stack segment  stack 'stack'
 	stackbuffer  db     200 dup (?)
 stack  ends
@@ -26,33 +28,34 @@ SELECTDIG  MACRO  DIGTION
           POP       DX
           ENDM
 
-;先显示的零数
+;慢加速先显示的零数
 SHALFCOUNT  PROC NEAR
-       MOV    BUFFER[0], AH             ;buffer[0]:PC1
-       MOV    BUFFER[1], AL	      ;	
+       MOV    BUFFER[0], AH             ;片选数码管参数
+       MOV    BUFFER[1], AL	        ;片选数码管参数
        PUSH    BX
        PUSH    DX
 SHOWFF:
-       MOV   AL,  [SI]
-       MOV   BL,  [DI]
-  
-        SELECTDIG  BUFFER[0]
+       MOV   AL,  [SI]                 ;数码管显示个位
+       MOV   BL,  [DI]                 ;数码管显示十位
+   
+        SELECTDIG  BUFFER[0]           ;片选数码管
         MOV     AL, AL
         MOV     DX, MY8255_B
-        OUT     DX, AL
-        CALL    BIGDELAY
-        SELECTDIG BUFFER[1]
+        OUT     DX, AL                 ;显示数字
+        CALL    BIGDELAY                ;延迟  
+        SELECTDIG BUFFER[1]            ;片选数码管
         MOV     AL, BL
         MOV     DX, MY8255_B
-        OUT     DX, AL
-       CALL    BIGDELAY
+        OUT     DX, AL                 ;显示数字
+       CALL    BIGDELAY                ;延迟
        INC     SI
-       LOOP   SHOWFF
+       LOOP   SHOWFF                   ;循环显示，直至要显示的最后一个数字
        POP     DX
        POP     BX
        RET
 SHALFCOUNT ENDP
 
+;快加速先显示的零数
 QHALFCOUNT  PROC 
        MOV    BUFFER[0], AH
        MOV    BUFFER[1], AL
@@ -79,39 +82,40 @@ SHOWFFQ:
        ret
 QHALFCOUNT ENDP
 
+;慢加速显示至最终速度
 SLOWSPEED PROC NEAR
         PUSH  DX
         PUSH DI
-        MOV   BUFFER[0],  AH    
-        MOV   BUFFER[1],  AL     
-        MOV   BUFFER[2],  BH
-        MOV   BUFFER[3],  BL
-LOOPDECADE:
+        MOV   BUFFER[0],  AH   ;最后速度的个位
+        MOV   BUFFER[1],  AL   ;最后速度的十位 
+        MOV   BUFFER[2],  BH  ;片选数码管，显示十位 
+        MOV   BUFFER[3],  BL  ;片选数码管，显示个位
+LOOPDECADE: 		     ;显示十位循环
         PUSH CX
         MOV  CX, 10
         MOV  DI, OFFSET LED
-LOOPUNIT:
-        SELECTDIG BUFFER[3]
+LOOPUNIT:                     ;显示个位循环，0～9
+        SELECTDIG BUFFER[3]   ;片选数码管
         MOV  AL, [DI]
         MOV  DX, MY8255_B
         MOV  BL, AL
-        OUT  DX, AL
-        INC  DI
+        OUT  DX, AL           ;显示个位
+        INC  DI                ;个位自增
        CALL BIGDELAY
-        SELECTDIG BUFFER[2]
+        SELECTDIG BUFFER[2]  ;片选数码管
         MOV  AL, [SI]
-        MOV  DX, MY8255_B
-        OUT  DX, AL
+        MOV  DX, MY8255_B    
+        OUT  DX, AL          ;显示个位
       CALL BIGDELAY
-        CMP  BL, BUFFER[1]
+        CMP  BL, BUFFER[1]   ;查看个位是否为最终速度的个位
         JZ   CMPDECADE
 LOOPBACK:
-        LOOP LOOPUNIT
+        LOOP LOOPUNIT        ;继续循环
         POP  CX
-        INC  SI
+        INC  SI             ;十位自增        
         LOOP LOOPDECADE
 CMPDECADE:
-        CMP  AL, BUFFER[0]
+        CMP  AL, BUFFER[0]   ;查看十位是否为最终速度的个位
         JZ   EXIT
         JNZ  LOOPBACK
 EXIT:
@@ -120,6 +124,8 @@ EXIT:
         RET
 SLOWSPEED   ENDP
    
+
+;快加速到最终速度
 QUICKSPEED  PROC NEAR
         MOV   BUFFER[0],  AH    ;shi wei
         MOV   BUFFER[1],  AL     ;ge wei
@@ -161,35 +167,37 @@ EXITQ:
         RET
 QUICKSPEED ENDP
      
+;显示绿灯亮，数码管显示05
 GREEN  PROC NEAR
         PUSH  AX
         PUSH  DX
         MOV CX, 1
 LOOPGREEN:
-        SELECTDIG  41H
-        MOV     AL, 6DH
+        SELECTDIG  41H     ;片选数码管，并绿灯亮
+        MOV     AL, 6DH    ;个位显示5
         MOV     DX, MY8255_B
         OUT 	DX, AL
         CALL     DELAY
       
-       SELECTDIG  42H
+       SELECTDIG  42H      ;片选十位数码管，并绿灯亮
         MOV     AL, 3FH
         MOV     DX, MY8255_B
-        OUT      DX, AL
+        OUT      DX, AL    ;十位显示0
         CALL    DELAY
 
-       MOV  DX, MY8255_A
+       MOV  DX, MY8255_A   ;再次读取开关值
         IN  AL, DX
-        CMP  AL, 00000001B
-        JNZ   GREENSTART
+        CMP  AL, 00000001B 
+        JNZ   GREENSTART  ;若开关值不变，则继续显示，否则调转
          INC CX
-        LOOP  LOOPGREEN
+        LOOP  LOOPGREEN   
 GREENSTART: 
         pop  dx
         pop  ax
         RET 
 GREEN  ENDP 
    
+;显示黄灯亮，数码管显示26
 YELLOW  PROC NEAR
         PUSH  AX
         PUSH  DX
@@ -218,6 +226,7 @@ YELLSTART:
         RET
 YELLOW ENDP
 
+;显示红灯亮，数码管显示51
 RED   PROC  NEAR
         PUSH  AX
         PUSH  DX
@@ -247,44 +256,38 @@ REDSTART:
         RET
 RED  ENDP
 
+;达到最终速度后，使最终速度保持稳定
 ENDNUM  PROC NEAR
-        MOV   BUFFER[0], AL
-        MOV   BUFFER[1], AH
-        MOV   BUFFER[2], BL
-        MOV   BUFFER[3], CL
-        MOV   BUFFER[4], CH
+        MOV   BUFFER[0], AL     ;最终速度的个位
+        MOV   BUFFER[1], AH     ;最终速度的十位
+        MOV   BUFFER[2], BL     ;与最终速度对应的开关值
+        MOV   BUFFER[3], CL    ;片选数码管个位
+        MOV   BUFFER[4], CH    ;片选数码管十位
         PUSH DX
         MOV CX, 1
 LOOPSHOW:
-         SELECTDIG BUFFER[3]
+         SELECTDIG BUFFER[3]    ;片选数码管
          MOV AL, BUFFER[0]
          MOV DX, MY8255_B
-         OUT DX, AL
+         OUT DX, AL             ;显示个位
          CALL  DELAY
-         SELECTDIG BUFFER[4]
+         SELECTDIG BUFFER[4]   ;片选数码管
           MOV AL,BUFFER[1]
           MOV DX, MY8255_B
-          OUT DX, AL
+          OUT DX, AL           ;显示十位
          CALL  DELAY
-        MOV  DX, MY8255_A
+        MOV  DX, MY8255_A      ;再次读取开关的值
         IN AL, DX
-        CMP AL, BUFFER[2]
-         JNZ LOOPSTART
+        CMP AL, BUFFER[2]      ;判断开关值是否不变,
+         JNZ LOOPSTART         ;若不变，继续显示；否则调转
          INC   CX
         LOOP  LOOPSHOW
 LOOPSTART:
         POP DX
-       call  bigdelay
-        call  bigdelay
- call  bigdelay
- call  bigdelay
- call  bigdelay
- call  bigdelay
-     
         RET
 ENDNUM  ENDP
 
-;慢刹车
+;慢刹车,数码管最终显示速度为00
 DOWNSPEED PROC NEAR
 	PUSH DX
 	PUSH AX
@@ -298,41 +301,41 @@ DOWNFIRST:
 	MOV 	AL, [DI]
 	MOV 	DX, MY8255_B
 	OUT 	DX, AL
-                 CALL       BIGDELAY
-               CMP         SI, 00H
+        CALL       BIGDELAY
+        CMP         SI, 00H
 	JZ 	DOWNSECOND
 	DEC 	SI
 	JMP     DOWNFIRST
 DOWNSECOND:
-                MOV 	CX, DI                 ;十位
-                DEC        DI
-DOWNDECADE:
+        MOV 	CX, DI                 ;十位
+        DEC        DI
+DOWNDECADE:                            ;倒序显示十位
 	PUSH    CX
-	MOV 	SI, OFFSET LED + 9      ;个位
+	MOV 	SI, OFFSET LED + 9     ;倒序显示个位9～0
 	MOV 	CX, 10
 DOWNUNIT:
-	SELECTDIG BUFFER[0]
-	MOV  	AL, [SI]
-	MOV 	DX, MY8255_B
-	OUT 	DX, AL
+	SELECTDIG BUFFER[0]            ;个位显示循环
+	MOV  	AL, [SI]             
+	MOV 	DX, MY8255_B          
+	OUT 	DX, AL                 ;显示个位 
        CALL    BIGDELAY
 	SELECTDIG  BUFFER[1]
 	MOV 	AL, [DI]
 	MOV 	DX, MY8255_B
-	OUT 	DX, AL
+	OUT 	DX, AL                ;显示十位
       CALL  BIGDELAY
 	DEC 	SI
-	LOOP    DOWNUNIT
+	LOOP    DOWNUNIT              ;个位循环显示直至0
 	POP 	CX
 	DEC 	DI
-	LOOP 	DOWNDECADE
-	POP         AX
+	LOOP 	DOWNDECADE           ;十位循环显示直至0
+	POP      AX
 	POP 	BX
 RETURN:
 	RET
 DOWNSPEED  ENDP
 
-;刹车
+;快刹车，数码管最终速度显示为00
 QDOWNSPEED PROC NEAR
 	PUSH DX
 	PUSH AX
@@ -402,48 +405,48 @@ START:
         mov      ax, stack
         mov      ss, ax
 
-        MOV     DX, MY8255_MODE       ;send control word
-        MOV     AL, 90H                            ;10010000b
+        MOV     DX, MY8255_MODE       ;送方式控制字
+        MOV     AL, 90H               ;10010000b，A、B、C工作于方式0，A端口用来输入，B、C用来输出
         OUT     DX, AL
 
 LOOP1: 
-        MOV     DX, MY8255_A      ;read from a
-        IN      AL, DX
-        MOV     BL,AL
-        CMP     BL, 11111110B    ;judge pa0
-        JZ         JUST_GREEN
-        CMP     BL, 11111101B
-        JZ          JUST_YELLOW
-        CMP     BL, 11111011B
-        JZ          JUST_RED   
-        CMP BL, 0F5H
-        JZ     SEC_UP_S1
-        CMP BL, 0EDH
-        JZ     SEC_UP_F1
-        CMP BL, 0F6H
-        JZ      FIR_UP_S1
-        CMP BL, 0EEH
-        JZ      FIR_UP_F1
-        CMP BL,0F3H
-        JZ THIRD_UP_S1
-        CMP BL, 0EBH
-        JZ  THIRD_UP_F1
-        CMP BL, 0DEH
-         JZ FIR_DOWN_S1
-         CMP BL, 0BEH
-          JZ FIR_DOWN_F1
-          CMP BL, 0DDH
-          JZ SEC_DOWN_S1
-          CMP BL, 0BDH
-           JZ SEC_DOWN_F1
-           CMP BL, 0DBH
-           JZ THIRD_DOWN_S1
-          CMP BL, 0BBH
-          JZ THIRD_DOWN_F1
-          cmp bl, 00h
-          jz   byebye1
-          CALL  URGENCY
-          JMP     LOOP1
+	MOV     DX, MY8255_A         ;读A端口的开关值
+	IN      AL, DX
+	MOV     BL,AL
+	CMP     BL, 11111110B        ;一档
+	JZ         JUST_GREEN
+	CMP     BL, 11111101B        ;二档
+	JZ          JUST_YELLOW
+	CMP     BL, 11111011B        ;三档
+	JZ          JUST_RED   
+	CMP BL, 0F5H                 ;二档慢加速
+	JZ     SEC_UP_S1
+	CMP BL, 0EDH
+	JZ     SEC_UP_F1             ;二档快加速
+	CMP BL, 0F6H
+	JZ      FIR_UP_S1            ;一档慢加速
+	CMP BL, 0EEH
+	JZ      FIR_UP_F1            ;一档快加速
+	CMP BL,0F3H
+	JZ THIRD_UP_S1               ;三档慢加速
+	CMP BL, 0EBH
+	JZ  THIRD_UP_F1              ;三档快加速
+	CMP BL, 0DEH
+	JZ FIR_DOWN_S1              ;一档慢刹车
+	CMP BL, 0BEH
+	JZ FIR_DOWN_F1             ;一档快刹车
+	CMP BL, 0DDH
+	JZ SEC_DOWN_S1             ;二档慢刹车
+	CMP BL, 0BDH
+	JZ SEC_DOWN_F1            ;二档快刹车
+	CMP BL, 0DBH
+	JZ THIRD_DOWN_S1          ;三档慢刹车
+	CMP BL, 0BBH
+	JZ THIRD_DOWN_F1           ;三档快刹车
+	cmp bl, 00h              
+	jz   byebye1               ;退出dos系统
+	CALL  URGENCY              ;紧急停车
+	JMP     LOOP1
 byebye1:
          jmp   byebye
 JUST_GREEN:
@@ -480,6 +483,7 @@ THIRD_DOWN_F1:
 THIRD_DOWN_S1:
         JMP    THIRD_DOWN_S
 
+;一档慢加速，车速05～25
 FIR_UP_S:
         MOV   SI, 5
         MOV   DI, 0
@@ -537,6 +541,7 @@ EXIT1:
         CALL    ENDNUM 
         JMP   LOOP1
    
+;一档快加速，车速05～25
 FIR_UP_F:
         MOV   SI, 5
         MOV   DI, 0
@@ -594,6 +599,7 @@ EXIT2:
         CALL    ENDNUM
         JMP   LOOP1 
  
+;二档慢加速，车速26~50
 SEC_UP_S:
         MOV   SI, 6
         MOV   DI, 2
@@ -617,6 +623,8 @@ SEC_UP_S:
         MOV    CL, 21H
         CALL    ENDNUM 
         JMP   LOOP1
+
+;二档快加速，车速26～50
 SEC_UP_F:
         MOV   SI, 6
         MOV   DI, 2
@@ -641,6 +649,7 @@ SEC_UP_F:
         CALL    ENDNUM 
         JMP   LOOP1
 
+;三档慢加速，51~90
 THIRD_UP_S:
         MOV   SI, 1
         MOV   DI, 5
@@ -665,6 +674,7 @@ THIRD_UP_S:
         CALL    ENDNUM 
         JMP   LOOP1
 
+;三档快加速，51~90
 THIRD_UP_F:
         MOV   SI, 1
         MOV   DI, 5
@@ -689,6 +699,7 @@ THIRD_UP_F:
         CALL    ENDNUM 
         JMP   LOOP1
 
+;一档急刹车，车速25~00
 FIR_DOWN_F:
         MOV   BUFFER[0], 41H
         MOV    BUFFER[1], 42H
@@ -704,7 +715,7 @@ FIR_DOWN_F:
         CALL    ENDNUM
         JMP   LOOP1
 
-
+;一档慢刹车，车速25~00
 FIR_DOWN_S:
         MOV   BUFFER[0], 41H
         MOV    BUFFER[1], 42H
@@ -720,6 +731,7 @@ FIR_DOWN_S:
         CALL    ENDNUM 
         JMP   LOOP1
 
+;二档急刹车，车速50～00
 SEC_DOWN_F:
         MOV    BUFFER[0], 21H
         MOV    BUFFER[1], 22H
@@ -735,6 +747,7 @@ SEC_DOWN_F:
         CALL    ENDNUM 
        JMP   LOOP1
 
+;二档慢刹车，车速50~00
 SEC_DOWN_S:
          MOV    BUFFER[0], 21H
         MOV    BUFFER[1], 22H
@@ -749,6 +762,8 @@ SEC_DOWN_S:
         MOV    CL,  21H
         CALL    ENDNUM 
        JMP   LOOP1
+
+;三档急刹车，速度90~00
 THIRD_DOWN_F:
         MOV   BUFFER[0], 11H
         MOV   BUFFER[1], 12H
@@ -763,6 +778,8 @@ THIRD_DOWN_F:
         MOV    CL,  11H
         CALL    ENDNUM 
         JMP   LOOP1
+
+;三档慢刹车，速度90～00
 THIRD_DOWN_S:
         MOV   BUFFER[0], 11H
         MOV   BUFFER[1], 12H
@@ -777,6 +794,8 @@ THIRD_DOWN_S:
         MOV    CL,  11H
         CALL    ENDNUM 
         JMP   LOOP1
+
+;快加速、快刹车延迟子程序
 DELAY   PROC
         PUSH  CX
         MOV   CX, 7555H
@@ -787,6 +806,7 @@ C1:
         RET
 DELAY   ENDP
 
+;慢加速、慢刹车延迟子程序
 BIGDELAY   PROC
         PUSH  CX
         MOV   CX, 0FFFFH
